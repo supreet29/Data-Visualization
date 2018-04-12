@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .background {
+        fill: none;
+        pointer-events: all;
+    }
+
+    .feature {
+        fill: #faeeee;
+        cursor: pointer;
+    }
+
+    .feature.active {
+        fill: #efdfb6;
+    }
+	
+    #graphic {
+        width: 500px;
+        height: 700px;
+        position: relative;
+        float: right;
+        background-color: none;
+    }
+
+    .mesh {
+        fill: none;
+        stroke: #fff;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    h1 {
+        font-family: arial;
+        font-size: 2em;
+        color: #333;
+    }
+
+    #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+    }
+
+    .states {
+        fill: #e5e5e5;
+        stroke: #fff;
+        stroke-width: 2px;
+    }
+
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 200px;
+        height: 60px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: lightsteelblue;
+        border: 0px;
+        border-radius: 8px;
+       /* pointer-events: none;*/
+    }
+
+    .csvTable table {
+        border-collapse: collapse;
+        text-align: left;
+        width: 100%;
+    }
+
+    .csvTable {
+        font: normal 12px/150% Arial, Helvetica, sans-serif;
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #069;
+        -webkit-border-radius: 3px;
+        -moz-border-radius: 3px;
+        border-radius: 3px;
+    }
+
+    .csvTable table td,
+    .csvTable table th {
+        padding: 3px 10px;
+    }
+
+    .csvTable table thead th {
+        background: 0;
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#006699', endColorstr='#00557F');
+        background-color: #006D2C;
+        color: #FFF;
+        font-size: 15px;
+        font-weight: 700;
+        border-left: 1px solid #0070A8;
+    }
+
+    .csvTable table thead th:first-child {
+        border: none;
+    }
+
+    .csvTable table tbody td {
+        color: #00496B;
+        border-left: 1px solid #E1EEF4;
+        font-size: 12px;
+        border-bottom: 1px solid #E1EEF4;
+        font-weight: 400;
+    }
+
+    .csvTable table tbody td:first-child {
+        border-left: none;
+    }
+
+    .csvTable table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .csvTable tr:hover td {
+        background-color: #069;
+        color: white;
+    }
+</style>
+
+<body>
+    <div id="info">
+        <h1 id="name"></h1>
+    </div>
+    <h1 style="font-size:40px;" align='center'><img src="12.png" alt="scale" class="center" height="150" width="600"></h1>
+    <table border="0" cellpadding="10" style="overflow-y: scroll;">
+        <tr>
+            <td>
+                <div id="table_container" class="csvTable"></div>
+            </td>
+            <td>
+                <div id="map_container"></div>
+            </td>
+        </tr>
+    </table>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="sc.png" alt="scale" class="center" height="80" width="600"></div>
+
+    <script src="//d3js.org/d3.v3.min.js"></script>
+    <script src="//d3js.org/topojson.v1.min.js"></script>
+    <script>
+        //var lowColor = '#f9f9f9'
+        //	var highColor = '#bc2a66'
+		var formatTime = d3.time.format("%e %B");
+        var width = 960,
+            height = 500,
+            active = d3.select(null);
+        var jsonOutside, tableData = [];
+
+        var projection = d3.geo.albersUsa()
+            .scale(1000)
+            .translate([width / 2, height / 2])
+            .scale([1000]);
+
+        var t = projection.translate(); // the projection's default translation
+        var s = projection.scale() // the projection's default scale
+        var path = d3.geo.path()
+            .projection(projection);
+        var div = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+        // from colorbrewer (http://colorbrewer2.org/)
+        var colours = ["#31A354", "#006D2C"];
+
+        // setup colours for choropleth
+        var colScale = d3.scale.ordinal()
+            .range(colours);
+
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        svg.append("rect")
+            .attr("class", "background")
+            .attr("width", width)
+            .attr("height", height)
+            .on("click", reset);
+
+        var g = svg.append("g")
+            .style("stroke-width", "1.5px");
+
+        let temp = [], finalArray = []
+
+        var lowColor = '#f9f9f9'
+        var highColor = '#bc2a66'
+        // en-d =------------------------------------------------------------------  
+
+
+        // d3.json("http://bsouthga.github.io/d3-exploder/us.json", function (error, us) {
+        //   		a.selectAll("path")
+        //   		console.log(path)});
+        // en-d =------------------------------------------------------------------       
+
+
+        d3.json("us.json", function (error, us) {
+            if (error) throw error;
+            console.log(us)
+            let batch1 = [], batch2 = [], batch3 = [], batch4 = [], batch5 = [], batch6 = [], batch7 = [], batch8 = [];
+            g.selectAll("path")
+                .data(topojson.feature(us, us.objects.states).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("class", "feature", function (d) {
+                    console.log('d feature: ', d);
+
+                })
+                .on("click", clicked)
+                .style("stroke", "#fff")
+                .style("stroke-width", "1")
+                .style("fill", function (d) {
+                    console.log('d*********: ', d);
+
+                    if (d.id === 6) //26
+                        return '#d65c5c'
+                    if (d.id === 12) //17
+                        return '#da6c6c'
+                    if (d.id === 53) //15
+                        return '#de7c7c'
+                    if (d.id === 48) //15
+                        return '#de7c7c'
+                    if (d.id === 13) //13
+                        return '#e28c8c'
+                    if (d.id === 4) //11
+                        return '#e69d9d'
+                    if (d.id === 37) //11
+                        return '#e69d9d'
+                    if (d.id === 36) //10,9
+                        return '#eaadad'
+                    if (d.id === 39) //10,9
+                        return '#eaadad'
+                    if (d.id === 1) //10,9
+                        return '#eaadad'
+                    if (d.id === 17) //10,9
+                        return '#eaadad'
+                    if (d.id === 42) //8,7
+                        return '#eebdbd'
+                    if (d.id === 51) //8,7
+                        return '#eebdbd'
+                    if (d.id === 55) //8,7
+                        return '#eebdbd'
+                    if (d.id === 41) //5,4
+                        return '#f2cece'
+                    if (d.id === 32) //5,4
+                        return '#f2cece'
+                	if (d.id === 8) //5,4
+                        return '#f2cece'
+                    if (d.id === 45) //5,4
+                        return '#f2cece'
+                    if (d.id === 27) //5,4
+                        return '#f2cece'
+                    if (d.id === 22) //5,4
+                        return '#f2cece'
+                    if (d.id === 28) //5,4
+                        return '#f2cece'
+                	if (d.id === 47) //5,4
+                        return '#f2cece'
+                    if (d.id === 21) //5,4
+                        return '#f2cece'
+                	if (d.id === 26) //5,4
+                        return '#f2cece'
+                    if (d.id === 25) //5,4
+                        return '#f2cece'
+                	if (d.id === 40) //5,4
+                        return '#f2cece'
+                    if (d.id === 34) //3,2
+                        return '#f6dede'
+                    if (d.id === 9) //3,2
+                        return '#f6dede'
+                    if (d.id === 24) //3,2
+                        return '#f6dede'
+                    if (d.id === 5) //3,2
+                        return '#f6dede'
+                    if (d.id === 20) //3,2
+                        return '#f6dede'
+                    if (d.id === 31) //3,2
+                        return '#f6dede'
+                    if (d.id === 35) //3,2
+                        return '#f6dede'
+                    if (d.id === 49) //3,2
+                        return '#f6dede'
+                    if (d.id === 30) //3,2
+                        return '#f6dede'
+                });
+
+
+
+            console.log('cnwncwncnjwjcn', topojson.feature(us, us.objects.states).features);
+            g.append("path")
+                .datum(topojson.mesh(us, us.objects.states, function (a, b) {
+                    return a !== b;
+                }))
+                .attr("class", "mesh")
+                .attr("d", path);
+            // batch5 = data
+            let marks = [];
+            d3.csv('Mass_Shootings_Dataset.csv', function (data) {
+                console.log('data: ', data);
+                marks = data
+                batch5 = data
+                data.map(attacks => {
+                    let year = attacks.Date.split('-')[2]
+                    if (year === '16' || year === '15') {
+                        batch1.push(attacks)
+                    }
+                    else if (year === '14' || year === '13') {
+                        batch6.push(attacks)
+                    }
+                    else if (year === '12' || year === '11' || year === '10' || year === '09') {
+                        batch2.push(attacks)
+                    }
+                    else if (year === '08' || year === '07' || year === '06' || year === '05') {
+                        batch3.push(attacks)
+                    }
+ 
+                    else {
+                        batch7.push(attacks)
+                    }
+                })
+            })
+            setTimeout(function () {    //set timeout makes sure that the value get after the csv asynchorous operation
+
+                tableData = [{ S_No: 1, Year: '2015-2016', attacks: batch1, Total_Victims: batch1.length },
+                { S_No: 2, Year: '2013-2014', attacks: batch6, Total_Victims: batch6.length },
+                { S_No: 3, Year: '2009-2012', attacks: batch2, Total_Victims: batch2.length },
+                { S_No: 4, Year: '2005-2008', attacks: batch3, Total_Victims: batch3.length },
+                { S_No: 5, Year: 'Before 2005', attacks: batch7, Total_Victims: batch7.length },
+                { S_No: 6, Year: ' ALL', attacks: batch5, Total_Victims: batch5.length }]
+
+                // var minVal = d3.min(tableData)
+                // console.log('minVal: ', minVal);
+                // var maxVal = d3.max(tableData)
+                // console.log('maxVal: ', maxVal);
+                // var ramp = d3.scale.Linear().domain([minVal, maxVal]).range([lowColor, highColor])
+
+                var columns = ["S_No", "Year", "Total_Victims"];
+                var table = d3.select("#table_container").append("table"),
+                    thead = table.append("thead"),
+                    tbody = table.append("tbody");
+
+                // append the header row
+                thead.append("tr")
+                    .selectAll("th")
+                    .data(columns)
+                    .enter()
+                    .append("th")
+                    .text(function (column) { return column; });
+                // create a row for each object in the data
+                var rows = tbody.selectAll("tr")
+                    .data(tableData)
+                    .enter()
+                    .append("tr")
+                    .on("click", function (d) { tableRowClicked(d); });
+
+                // create a cell in each row for each column
+                var cells = rows.selectAll("td")
+                    .data(function (row) {
+                        return columns.map(function (column) {
+                            return { column: column, value: row[column] };
+                        });
+                    })
+                    .enter()
+                    .append("td")
+                    .text(function (d) { return d.value; }
+                    ); // added on click eventto td 
+
+
+                // add extents (max and min) from data results for choropleth
+                colScale.domain(d3.extent(tableData, function (d) { return d.Result; }));
+
+            }, 200);
+            // 
+        });
+
+        function clicked(d) {
+            console.log('state id : ', d.id);
+            if (active.node() === this) return reset();
+            active.classed("active", false);
+            active = d3.select(this).classed("active", true);
+
+            var bounds = path.bounds(d),
+                dx = bounds[1][0] - bounds[0][0],
+                dy = bounds[1][1] - bounds[0][1],
+                x = (bounds[0][0] + bounds[1][0]) / 2,
+                y = (bounds[0][1] + bounds[1][1]) / 2,
+                scale = 1 / Math.max(dx / width, dy / height),
+                translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            g.transition()
+                .duration(750)
+                .style("stroke-width", 1.5 / scale + "px")
+                .attr("d", path)
+                .attr("transform", "translate(" + translate + ")scale(" + scale + ")")
+                .style('fill', function (d) {
+                    console.log('d: ', d);
+                    return '#76200E'
+                })
+            //this will move the markers
+            g.selectAll(".mark")
+                .transition()
+                .duration(750)
+                .attr("transform", function (d) {
+                    var t = d3.transform(d3.select(this).attr("transform")).translate;
+                    return "translate(" + t[0] + "," + t[1] + ")scale(" + 1 / scale + ")";
+                });
+        }
+        function tableRowClicked(x, i) {
+            console.log('x: ', x);
+            x.attacks.map(e => finalArray.push(e))
+
+            console.log('finalArray: ', finalArray);
+            g.selectAll(".mark")
+                .data(finalArray)
+                .enter()
+                .append("image")
+                .attr('class', 'mark')
+                .attr('width', function (d) {
+                    return Math.sqrt(d.Total_victims) * 10
+                })
+                .attr('height', function (d) {
+                    return Math.sqrt(d.Total_victims) * 10
+                })
+                // https://cdn-images-1.medium.com/max/295/1*aw9NDgXOCd7UeXzE8GhgYw.png
+                .attr("xlink:href", 'https://cdn2.iconfinder.com/data/icons/perfect-flat-icons-2/512/Location_marker_pin_map_gps.png')
+                .attr("transform", function (d) {
+                    return "translate(" + projection([d.Longitude, d.Latitude]) + ")";
+
+                })
+                .on("mouseover", function (d) {
+                    console.log('d: ', d);
+                    div.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    //div.html(formatTime(d.date) + "<br/>"  + d.Title)
+                  div.text(function () {
+                        console.log('d: ', d);
+                        // svg.text(function(d) {
+                     return (d.Title + "\n"  + d.Location + "\n" + d.Date + "\n" + d.Total_victims);
+                    })
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY - 28) + "px");
+                })
+
+            // jsonOutside.features.forEach(function (d) { // loop through json data to match td entry
+            //     if (x.value === d.properties.name) {
+            //         var county = d;
+            //         click(d); // pass json element that matches td data to click 
+            //     };
+            
+            // })
+        }
+
+        function reset() {
+            active.classed("active", false);
+            active = d3.select(null);
+
+            g.transition()
+                .duration(750)
+                .style("stroke-width", "1.5px")
+                .attr("transform", "");
+            g.selectAll(".mark")
+                .attr("transform", function (d) {
+                    var t = d3.transform(d3.select(this).attr("transform")).translate;
+                    return "translate(" + t[0] + "," + t[1] + ")scale(" + 1 + ")";
+                });
+        }
+
+        var a = svg.selectAll("path")
+    </script>
